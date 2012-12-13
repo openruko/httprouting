@@ -50,7 +50,7 @@ exports.start = function(cb){
     console.log('Will proxy', name, 'to', instance.port);
     proxy.proxyRequest(req, res, {
       host: 'localhost',
-      port: 1337, //+instance.port
+      port: +instance.port,
       buffer: buffer
     });
   });

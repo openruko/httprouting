@@ -13,6 +13,8 @@ httpProxy.setMaxSockets(conf.httprouting.maxSockets);
 var pgClient = new pg.Client(conf.pg);
 pgClient.connect();
 
+pgClient.query('SET search_path TO openruko_data,public;');
+
 var tls = {
   key: fs.readFileSync(Path.join(__dirname, '../certs/server-key.pem')),
   cert: fs.readFileSync(Path.join(__dirname, '../certs/server-cert.pem'))
@@ -68,7 +70,7 @@ exports.start = function(cb){
 };
 
 function _getRandomInstance(name, cb){
-  pgClient.query('SELECT port FROM openruko_data.instance WHERE retired = false AND name = $1;', [name], function(err, result) {
+  pgClient.query('SELECT port FROM instance INNER JOIN app ON(instance.app_id = app.id) WHERE instance.retired = false AND app.name = $1;', [name], function(err, result) {
     if(err) return cb(err);
 
     var instance = _(result.rows).shuffle()[0];

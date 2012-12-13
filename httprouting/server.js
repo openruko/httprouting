@@ -6,13 +6,14 @@ var Path = require('path');
 var httpProxy = require('http-proxy');
 var conf = require('./conf');
 var _ = require('underscore');
+var memoize = require('memoizee');
 
 httpProxy.setMaxSockets(conf.httprouting.maxSockets);
 
 var pgClient = new pg.Client(conf.pg);
 pgClient.connect();
 
-var tls = { 
+var tls = {
   key: fs.readFileSync(Path.join(__dirname, '../certs/server-key.pem')),
   cert: fs.readFileSync(Path.join(__dirname, '../certs/server-cert.pem'))
 };
@@ -29,31 +30,50 @@ exports.start = function(cb){
   }
 
   function proxyWebSockets(req, socket, head) {
-    proxy.proxyWebSocketRequest(req, socket, head);
+    proxy.proxyWebSocketRequest(req, socket, head);
   }
 
   var proxy = new httpProxy.RoutingProxy();
   function onRequest(req, res) {
-  var buffer = httpProxy.buffer(req);
-  //only keep the app name from the HOST
-  var name = req.headers.host.replace(/\..*/g, '');
+    var buffer = httpProxy.buffer(req);
 
+    var host = req.headers.host;
+    if(!host) return error(new Error('Host not present in the headers'));
+
+    //only keep the app name from the HOST
+    var name = host.replace(/\..*/g, '');
+
+    getRandomInstance(name, function(err, instance){
+      if(err) return error(err);
+
+      if(!instance) {
+        res.writeHead(404);
+        return res.end('Not found');
+      }
+
+      console.log('Will proxy', name, 'to', instance.port);
+      proxy.proxyRequest(req, res, {
+        host: 'localhost',
+        port: +instance.port,
+        buffer: buffer
+      });
+    });
+
+    function error(err){
+      console.error(err);
+      res.writeHead(500);
+      return res.end('Internal Error');
+    }
+  }
+};
+
+function _getRandomInstance(name, cb){
   pgClient.query('SELECT port FROM openruko_data.instance WHERE retired = false AND name = $1;', [name], function(err, result) {
-    if(err) return console.error(err);
+    if(err) return cb(err);
 
     var instance = _(result.rows).shuffle()[0];
-    if(!instance) {
-      res.writeHead(404);
-      return res.end('Not found');
-    }
-
-    console.log('Will proxy', name, 'to', instance.port);
-    proxy.proxyRequest(req, res, {
-      host: 'localhost',
-      port: +instance.port,
-      buffer: buffer
-    });
+    cb(null, instance);
   });
-  }
 }
-// TODO: a lot, this is a quick and dirty reverse proxy
+
+var getRandomInstance = memoize(_getRandomInstance, { async: true, maxAge: 1000 });

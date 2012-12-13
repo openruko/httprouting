@@ -3,16 +3,16 @@
   "version": "0.0.1",
   "description": "Proxy http requests to the right dyno",
   "main": "index.js",
-  "scripts": {},
-  "repository": "",
-  "author": "filirom1 <filirom1@gmail.com>",
-  "license": "MIT",
   "scripts": {
     "start": "node ./httprouting/bin/httprouting"
   },
+  "repository": "",
+  "author": "filirom1 <filirom1@gmail.com>",
+  "license": "MIT",
   "dependencies": {
     "pg": "~0.10.0",
     "http-proxy": "~0.8.5",
-    "underscore": "~1.4.3"
+    "underscore": "~1.4.3",
+    "memoizee": "~0.2.3"
   }
 }

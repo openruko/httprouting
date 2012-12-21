@@ -32,7 +32,17 @@ exports.start = function(cb){
   }
 
   function proxyWebSockets(req, socket, head) {
-    proxy.proxyWebSocketRequest(req, socket, head);
+    
+     var host = req.headers.host;
+    if(!host) return error(new Error('Host not present in the headers'));
+
+    //only keep the app name from the HOST
+    var name = host.replace(/\..*/g, '');
+
+    getRandomInstance(name, function(err, instance){
+      if(err) return error(err);
+      proxy.proxyWebSocketRequest(req, socket, head ,   { host: 'localhost', port: +instance.port } );
+    }
   }
 
   var proxy = new httpProxy.RoutingProxy();

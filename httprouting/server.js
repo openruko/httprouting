@@ -41,7 +41,12 @@ exports.start = function(cb){
 
     var host = req.headers.host;
     if(!host) return error(new Error('Host not present in the headers'));
-
+    
+    //verify potentially-malicious domains
+    var regex = new RegExp("^([a-z0-9.-]+|\[[a-f0-9]*:[a-f0-9:]+\])(:\d+)?$");
+    if(!regex.test(host)) return error(new Error('Host potentially malicious'));
+    
+    
     //only keep the app name from the HOST
     var name = host.replace(/\..*/g, '');
 

@@ -6,7 +6,7 @@ var http = require('http');
 var pg = require('pg');
 var async = require('async');
 var _ = require('underscore');
-var request = require('request');
+var request = require('request').defaults({strictSSL: false});
 var server = require('../httprouting/server');
 var conf = require('../httprouting/conf');
 
@@ -43,6 +43,15 @@ describe('httprouting', function(){
 
     it('should proxy request to the app', function(done){
       request('http://toto.mymachine.me:' + conf.httprouting.port + '/', function(err, resp, body){
+        if(err) return done(err);
+        expect(resp).to.have.status(200);
+        expect(body).to.be.equal('1234 - toto');
+        done();
+      });
+    });
+
+    it('should proxy https request to the app', function(done){
+      request('https://toto.mymachine.me:' + conf.httprouting.tlsPort + '/', function(err, resp, body){
         if(err) return done(err);
         expect(resp).to.have.status(200);
         expect(body).to.be.equal('1234 - toto');

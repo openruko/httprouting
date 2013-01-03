@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "start": "node ./httprouting/bin/httprouting",
-    "test": "PG_DATABASE=openruko_test ./node_modules/.bin/mocha -R spec --grep \"$GREP\""
+    "test": "PG_DATABASE=openruko_test HTTPROUTING_TLS=true ./node_modules/.bin/mocha -R spec --grep \"$GREP\""
   },
   "repository": "",
   "author": "filirom1 <filirom1@gmail.com>",

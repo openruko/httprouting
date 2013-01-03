@@ -7,6 +7,7 @@ var httpProxy = require('http-proxy');
 var conf = require('./conf');
 var _ = require('underscore');
 var memoize = require('memoizee');
+var async = require('async');
 
 httpProxy.setMaxSockets(conf.httprouting.maxSockets);
 
@@ -21,15 +22,19 @@ var tls = {
 };
 
 exports.start = function(cb){
-  var server = http.createServer(onRequest);
-  server.on('upgrade', proxyWebSockets);
-  server.listen(conf.httprouting.port);
-
-  if(conf.httprouting.tls){
-    var tlsServer = https.createServer(tls, onRequest);
-    tlsServer.on('upgrade', proxyWebSockets);
-    tlsServer.listen(conf.httprouting.tlsPort);
-  }
+  async.parallel([
+    function(cb){
+      var server = http.createServer(onRequest);
+      server.on('upgrade', proxyWebSockets);
+      server.listen(conf.httprouting.port, cb);
+    },
+    function(cb){
+      if(!conf.httprouting.tls) return cb();
+      var tlsServer = https.createServer(tls, onRequest);
+      tlsServer.on('upgrade', proxyWebSockets);
+      tlsServer.listen(conf.httprouting.tlsPort, cb);
+    }
+  ], cb);
 
   function proxyWebSockets(req, socket, head) {
     proxy.proxyWebSocketRequest(req, socket, head);
@@ -41,12 +46,7 @@ exports.start = function(cb){
 
     var host = req.headers.host;
     if(!host) return error(new Error('Host not present in the headers'));
-    
-    //verify potentially-malicious domains
-    var regex = new RegExp("^([a-z0-9.-]+|\[[a-f0-9]*:[a-f0-9:]+\])(:\d+)?$");
-    if(!regex.test(host)) return error(new Error('Host potentially malicious'));
-    
-    
+
     //only keep the app name from the HOST
     var name = host.replace(/\..*/g, '');
 
@@ -83,4 +83,7 @@ function _getRandomInstance(name, cb){
   });
 }
 
-var getRandomInstance = memoize(_getRandomInstance, { async: true, maxAge: 1000 });
+// TODO memoize will make test harder to debug.
+// Is it really useful ? It looks to be a premature optimization.
+//var getRandomInstance = memoize(_getRandomInstance, { async: true, maxAge: 1000 });
+var getRandomInstance = _getRandomInstance;

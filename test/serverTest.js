@@ -7,6 +7,8 @@ var pg = require('pg');
 var async = require('async');
 var _ = require('underscore');
 var request = require('request').defaults({strictSSL: false});
+var WebSocketServer = require('websocket').server;
+var WebSocketClient = require('websocket').client;
 var server = require('../httprouting/server');
 var conf = require('../httprouting/conf');
 
@@ -56,6 +58,17 @@ describe('httprouting', function(){
         expect(resp).to.have.status(200);
         expect(body).to.be.equal('1234 - toto');
         done();
+      });
+    });
+
+    it('should proxy WebSocket requests to the app', function(done){
+      var client = new WebSocketClient();
+      client.connect('ws://toto.mymachine.me:' + conf.httprouting.port + '/', 'echo-protocol');
+      client.on('connect', function(connection) {
+        connection.sendUTF('ping');
+        connection.on('message', function(message) {
+          if(message.utf8Data === 'pong') done();
+        });
       });
     });
 
@@ -113,10 +126,24 @@ function startServer(id, name, port, cb){
         res.end(port + ' - ' + name);
       });
       server.listen(port, cb);
+      enableWebSocket(server);
     },
     function(cb){
       client.query("INSERT INTO instance (app_id, port, retired) VALUES($1,$2,$3);", [id, port, false], cb);
     }
   ], cb);
   return server;
+}
+
+function enableWebSocket(server){
+  var wsServer = new WebSocketServer({
+      httpServer: server,
+      autoAcceptConnections: true
+  });
+  wsServer.on('request', function(request) {
+    var connection = request.accept('echo-protocol', request.origin);
+    connection.on('message', function(message) {
+      connection.sendUTF('pong');
+    });
+  });
 }

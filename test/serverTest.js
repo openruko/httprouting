@@ -68,6 +68,7 @@ describe('httprouting', function(){
         connection.sendUTF('ping');
         connection.on('message', function(message) {
           if(message.utf8Data === 'pong') done();
+          connection.close();
         });
       });
     });
@@ -138,7 +139,7 @@ function startServer(id, name, port, cb){
 function enableWebSocket(server){
   var wsServer = new WebSocketServer({
       httpServer: server,
-      autoAcceptConnections: true
+      autoAcceptConnections: false
   });
   wsServer.on('request', function(request) {
     var connection = request.accept('echo-protocol', request.origin);

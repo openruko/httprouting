@@ -37,39 +37,27 @@ exports.start = function(cb){
   ], cb);
 
   function proxyWebSockets(req, socket, head) {
-    
-     var host = req.headers.host;
-    if(!host) return error(new Error('Host not present in the headers'));
-
-    //only keep the app name from the HOST
-    var name = host.replace(/\..*/g, '');
-
-    getRandomInstance(name, function(err, instance){
+    getRandomInstanceFromRequest(req, function(err, instance){
       if(err) return error(err);
-      proxy.proxyWebSocketRequest(req, socket, head ,   { host: 'localhost', port: +instance.port } );
-    }
+
+      proxy.proxyWebSocketRequest(req, socket, head , { host: 'localhost', port: +instance.port } );
+    });
   }
 
   var proxy = new httpProxy.RoutingProxy();
   function onRequest(req, res) {
     var buffer = httpProxy.buffer(req);
 
-    var host = req.headers.host;
-    if(!host) return error(new Error('Host not present in the headers'));
-
-    //only keep the app name from the HOST
-    var name = host.replace(/\..*/g, '');
-
-    getRandomInstance(name, function(err, instance){
+    getRandomInstanceFromRequest(req, function(err, instance){
       if(err) return error(err);
 
       if(!instance) {
         res.writeHead(404);
         return res.end('Not found');
       }
-
-      console.log('Will proxy', name, 'to', instance.port);
+      console.log('Will proxy', req.url, 'to localhost:', instance.port);
       proxy.proxyRequest(req, res, {
+        // TODO replace localhost by the dynohost hostname
         host: 'localhost',
         port: +instance.port,
         buffer: buffer
@@ -97,3 +85,18 @@ function _getRandomInstance(name, cb){
 // Is it really useful ? It looks to be a premature optimization.
 //var getRandomInstance = memoize(_getRandomInstance, { async: true, maxAge: 1000 });
 var getRandomInstance = _getRandomInstance;
+
+// sort of middleware shared by http and websocket request
+function getRandomInstanceFromRequest(req, next){
+  var host = req.headers.host;
+  if(!host) return next(new Error('Host not present in the headers'));
+
+  //only keep the app name from the HOST
+  var name = host.replace(/\..*/g, '');
+
+  getRandomInstance(name, function(err, instance){
+    if(err) return next(err);
+    next(null, instance);
+  });
+}
+

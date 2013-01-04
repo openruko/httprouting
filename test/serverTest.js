@@ -73,6 +73,18 @@ describe('httprouting', function(){
       });
     });
 
+    it('should proxy tls WebSocket requests to the app', function(done){
+      var client = new WebSocketClient();
+      client.connect('wss://toto.mymachine.me:' + conf.httprouting.tlsPort + '/', 'echo-protocol');
+      client.on('connect', function(connection) {
+        connection.sendUTF('ping');
+        connection.on('message', function(message) {
+          if(message.utf8Data === 'pong') done();
+          connection.close();
+        });
+      });
+    });
+
     describe('with a second app', function(){
       var server2;
       beforeEach(function(done){

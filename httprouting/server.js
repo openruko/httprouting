@@ -40,7 +40,7 @@ exports.start = function(cb){
     getRandomInstanceFromRequest(req, function(err, instance){
       if(err) return error(err);
 
-      proxy.proxyWebSocketRequest(req, socket, head , { host: 'localhost', port: +instance.port } );
+      proxy.proxyWebSocketRequest(req, socket, head , { host: instance.dyno_hostname, port: +instance.port } );
     });
   }
 
@@ -55,10 +55,9 @@ exports.start = function(cb){
         res.writeHead(404);
         return res.end('Not found');
       }
-      console.log('Will proxy', req.url, 'to localhost:', instance.port);
+      console.log('Will proxy', req.url, 'to ' + instance.dyno_hostname + ':', instance.port);
       proxy.proxyRequest(req, res, {
-        // TODO replace localhost by the dynohost hostname
-        host: 'localhost',
+        host: instance.dyno_hostname,
         port: +instance.port,
         buffer: buffer
       });
@@ -73,7 +72,7 @@ exports.start = function(cb){
 };
 
 function _getRandomInstance(name, cb){
-  pgClient.query('SELECT port FROM instance INNER JOIN app ON(instance.app_id = app.id) WHERE instance.retired = false AND app.name = $1;', [name], function(err, result) {
+  pgClient.query("SELECT * FROM instance INNER JOIN app ON(instance.app_id = app.id) INNER JOIN instance_state ON(instance.id = instance_state.instance_id) WHERE instance.retired = false AND openruko_data.instance_state.state = 'running' AND app.name = $1;", [name], function(err, result) {
     if(err) return cb(err);
 
     var instance = _(result.rows).shuffle()[0];
